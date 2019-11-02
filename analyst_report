@@ -1,0 +1,70 @@
+import pandas as pd
+import PyPDF2
+import collections, re
+from textblob import TextBlob
+from nltk.corpus import stopwords
+
+def readThroughPDF(fileName):
+    pdfFileObj = open(fileName, 'rb')
+    pdfReader = PyPDF2.PdfFileReader(pdfFileObj)
+    pdflen = pdfReader.numPages
+    #extract and combine each page's text
+    pdftext = dict()
+    for i in range(pdflen):
+        pageObj = pdfReader.getPage(i)
+        pdftext[i] = pageObj.extractText()
+    fulltext = ''.join([j for j in pdftext.values()])
+    #fulltext = fulltext.encode('utf-8')
+    #fulltext = fulltext.decode('utf-8').replace('\n',' ')
+    return fulltext
+
+def fixBrokenWordsInSentence(fulltext):
+    s = str(fulltext)
+    s2 = s.split('    ')
+    si = []
+    for i in s2:
+        #merge every second element
+        j = iter(i.splitlines())
+        sii = [c + next(j, "") for c in j]
+        si.append(sii)
+        #join many list
+        sis = [x for xs in si for x in xs]
+        sis = ' '.join(sis)
+    return sis
+
+def formatText(fulltext):    
+    fulltext = fulltext.lower()
+    s = set(stopwords.words('english'))
+    cleanText = list(filter(lambda w: not w in s, fulltext.split()))
+    return cleanText
+
+def textFrame(text):
+    bagsofwords = [collections.Counter(re.findall(r'\w+', txt)) for txt in text]
+    sumbags = dict(sum(bagsofwords, collections.Counter()))
+    remove = []
+    for i in sumbags.keys():
+        if len(i) <= 2:
+            remove.append(i)
+    for j in range(len(remove)):
+        del sumbags[remove[j]]
+    frame = pd.DataFrame(list(sumbags.items()), columns = ['Word','Count'])
+    frameNoNum = frame[frame['Word'].str.isalpha()]
+    return frameNoNum.sort_values(by = ['Count'],ascending = False)
+
+fileName = 'Argus Research Corporation-Argus Analyst Report, TXN 2016.pdf'
+#fileName = eval(input('Please enter the full file name with .pdf :'))
+
+textMined = textFrame(formatText(fixBrokenWordsInSentence(readThroughPDF(fileName))))
+print(fixBrokenWordsInSentence(readThroughPDF(fileName)))
+print(textMined)
+#export_csv1 = textMined2.to_csv(r'/Users/wenwanchun/eclipse-workspace/t3/TI report 2018 1025.csv',index = None, header = True)
+
+def sentiment(text):
+    obj = TextBlob(text)
+    sentiment = obj.sentiment.polarity
+    return sentiment
+
+
+my_text = fixBrokenWordsInSentence(readThroughPDF(fileName))
+sentiment = sentiment(my_text)
+print('Sentiment is ',sentiment)
